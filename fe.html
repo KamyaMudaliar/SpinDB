@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dropdown Selection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+    }
+
+    select, button {
+      padding: 10px;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Select an Item</h2>
+
+  <form id="selectionForm">
+    <select id="dropdown" name="items">
+      <option value="item1">Postgres</option>
+      <option value="item2">DyanmoDB</option>
+      <option value="item3">MySQL</option>
+      
+    </select>
+
+    <button onclick="submit()" type="submit">Send</button>
+  </form>
+
+  <p id="result"></p>
+
+  <script>
+    document.getElementById('selectionForm').addEventListener('submit', function(event) {
+      event.preventDefault(); // prevent actual form submission
+      const selectedItem = document.getElementById('dropdown').value;
+      document.getElementById('result').textContent = `You selected: ${selectedItem}`;
+    });
+    function submit() {
+            fetch('http://localhost:8080/api/submit')
+                .then(response => response.json())
+                .then(data => {
+                  document.getElementById('result').textContent += `\nBackend says: ${data.name}`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('result').textContent += `\nError: ${error}`;
+                });
+        }
+  </script>
+</body>
+</html>
