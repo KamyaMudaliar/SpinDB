@@ -20,12 +20,7 @@
   <h2>Select an Item</h2>
 
   <form id="selectionForm">
-    <select id="dropdown" name="items">
-      <option value="item1">Postgres</option>
-      <option value="item2">DyanmoDB</option>
-      <option value="item3">MySQL</option>
-      
-    </select>
+    <input type="text" id="dbInput" placeholder="Enter database name (e.g. postgres)">
 
     <button onclick="submit()" type="submit">Send</button>
   </form>
@@ -35,8 +30,7 @@
   <script>
     document.getElementById('selectionForm').addEventListener('submit', function(event) {
       event.preventDefault(); // prevent actual form submission
-      const selectedItem = document.getElementById('dropdown').value;
-      document.getElementById('result').textContent = `You selected: ${selectedItem}`;
+      const selectedItem = document.getElementById('dbInput').value;
     });
     function submit() {
             fetch('http://localhost:8080/api/submit')
