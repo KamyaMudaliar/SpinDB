@@ -1,48 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Dropdown Selection</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 40px;
-    }
-
-    select, button {
-      padding: 10px;
-      font-size: 16px;
-      margin-right: 10px;
-    }
-  </style>
+  <title>Submit Item</title>
 </head>
 <body>
-  <h2>Select an Item</h2>
+  <h3>Enter an Item</h3>
 
-  <form id="selectionForm">
-    <input type="text" id="dbInput" placeholder="Enter database name (e.g. postgres)">
-
-    <button onclick="submit()" type="submit">Send</button>
-  </form>
-
-  <p id="result"></p>
+  <input type="text" id="itemInput" placeholder="Type something..." />
+  <button onclick="submitItem()">Submit</button>
 
   <script>
-    document.getElementById('selectionForm').addEventListener('submit', function(event) {
-      event.preventDefault(); // prevent actual form submission
-      const selectedItem = document.getElementById('dbInput').value;
-    });
-    function submit() {
-            fetch('http://localhost:8080/api/submit')
-                .then(response => response.json())
-                .then(data => {
-                  document.getElementById('result').textContent += `\nBackend says: ${data.name}`;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    document.getElementById('result').textContent += `\nError: ${error}`;
-                });
-        }
+    function submitItem() {
+      const selectedItem = document.getElementById('itemInput').value;
+
+      fetch('http://localhost:8081/api/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: selectedItem })
+      })
+      .then(response => response.text())
+      .then(data => {
+        alert('Response: ' + data);
+      })
+      .catch(error => {
+        alert('Error: ' + error);
+      });
+    }
   </script>
 </body>
 </html>
