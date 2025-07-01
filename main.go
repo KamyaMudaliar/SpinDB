@@ -62,7 +62,7 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(results)
-	json.NewEncoder(w).Encode(input)
+	json.NewEncoder(w).Encode(results)
 }
 
 // Root handler for `/`

@@ -8,6 +8,7 @@
 
   <input type="text" id="itemInput" placeholder="Type something..." />
   <button onclick="submitItem()">Submit</button>
+  <div id="data1"></div>
 
   <script>
     function submitItem() {
@@ -22,6 +23,7 @@
       })
       .then(response => response.text())
       .then(data => {
+        document.getElementById('data1').textContent = `Backend says: ${data}`;
         alert('Response: ' + data);
       })
       .catch(error => {
