@@ -95,66 +95,68 @@
         console.log('Raw data received:', data);
         
         let parsedData;
-        
         // Try to parse as JSON first
-        try {
-          parsedData = JSON.parse(data);
-          console.log('i am god      ',parsedData[0].star_count);
-        } catch {
-          // Handle Go struct format like: [{14409 true postgres false description}]
-          // Convert to proper JSON array format
-          try {
-            // First, let's manually parse the Go struct format
-            let cleanData = data.trim();
+        parsedData = JSON.parse(data);
+        
+        // try {
+        //   parsedData = JSON.parse(data);
+        //   console.log('i am god      ',parsedData[0].star_count);
+        // } catch {
+        //   // Handle Go struct format like: [{14409 true postgres false description}]
+        //   // Convert to proper JSON array format
+        //   try {
+        //     // First, let's manually parse the Go struct format
+        //     let cleanData = data.trim();
             
-            // Remove outer brackets if present
-            if (cleanData.startsWith('[') && cleanData.endsWith(']')) {
-              cleanData = cleanData.slice(1, -1);
-            }
+        //     // Remove outer brackets if present
+        //     if (cleanData.startsWith('[') && cleanData.endsWith(']')) {
+        //       cleanData = cleanData.slice(1, -1);
+        //     }
             
-            // Split by } { to get individual structs
-            let structs = cleanData.split('} {');
+        //     // Split by } { to get individual structs
+        //     let structs = cleanData.split('} {');
             
-            parsedData = structs.map(struct => {
-              // Remove remaining { and }
-              struct = struct.replace(/^{/, '').replace(/}$/, '');
+        //     parsedData = structs.map(struct => {
+        //       // Remove remaining { and }
+        //       struct = struct.replace(/^{/, '').replace(/}$/, '');
               
-              // Parse the struct content
-              // Format: "14409 true postgres false The PostgreSQL..."
-              // We need to be careful with the description which may contain spaces
+        //       // Parse the struct content
+        //       // Format: "14409 true postgres false The PostgreSQL..."
+        //       // We need to be careful with the description which may contain spaces
               
-              let parts = struct.trim().split(' ');
-              if (parts.length >= 4) {
-                let stars =(parts[0]) || 0;
-                let isOfficial = parts[1] === 'true';
-                let name = parts[2];
-                let isAutomated = parts[3] === 'true';
-                let description = parts.slice(4).join(' '); // Join remaining parts as description
-                // console.log('hello world:',description); 
-                return [stars, isOfficial, name, isAutomated, description];
-              }
-              return null;
-            }).filter(item => item !== null);
+        //       let parts = struct.trim().split(' ');
+        //       if (parts.length >= 4) {
+        //         let stars =(parts[0]) || 0;
+        //         let isOfficial = parts[1] === 'true';
+        //         let name = parts[2];
+        //         let isAutomated = parts[3] === 'true';
+        //         let description = parts.slice(4).join(' '); // Join remaining parts as description
+        //         // console.log('hello world:',description); 
+        //         return [stars, isOfficial, name, isAutomated, description];
+        //       }
+        //       return null;
+        //     }).filter(item => item !== null);
             
-            console.log('Parsed structs:', parsedData);
+        //     console.log('Parsed structs:', parsedData);
             
-          } catch (parseError) {
-            console.error('Failed to parse Go struct format:', parseError);
-            throw new Error('Unable to parse response data');
-          }
-        }
+        //   } catch (parseError) {
+        //     console.error('Failed to parse Go struct format:', parseError);
+        //     throw new Error('Unable to parse response data');
+        //   }
+        // }
 
         if (!Array.isArray(parsedData) || parsedData.length === 0) {
           showError('No results found');
           return;
         }
 
+        //creates a tile for the each item like a header and a body 
         let html = `<div class="bg-white rounded-lg shadow-sm overflow-hidden">
           <div class="bg-gray-50 px-4 py-2 border-b">
             <h3 class="font-medium text-gray-900">Search Results (${parsedData.length})</h3>
           </div>`;
 
-        parsedData.forEach((item, index) => {
+        parsedData.forEach((item, index) => { //debugging
           console.log('Processing item:', item);
           
           // Handle the array format: [stars, is_official, name, is_automated, description]
