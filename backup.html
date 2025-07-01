@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Submit Item</title>
+</head>
+<body>
+  <h3>Enter an Item</h3>
+
+  <input type="text" id="itemInput" placeholder="Type something..." />
+  <button onclick="submitItem()">Submit</button>
+  <div id="data1"></div>
+
+  <script>
+    function submitItem() {
+      const selectedItem = document.getElementById('itemInput').value;
+
+      fetch('http://localhost:8081/api/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: selectedItem })
+      })
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById('data1').textContent = `Backend says: ${data}`;
+        alert('Response: ' + data);
+      })
+      .catch(error => {
+        alert('Error: ' + error);
+      });
+    }
+  </script>
+</body>
+</html>
