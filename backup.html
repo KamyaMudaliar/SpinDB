@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
   <title>Submit Item</title>
@@ -29,6 +29,201 @@
       .catch(error => {
         alert('Error: ' + error);
       });
+    }
+  </script>
+</body>
+</html> -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen p-6">
+  <div class="max-w-4xl mx-auto">
+    
+    <!-- Search Bar -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div class="flex gap-3">
+        <input 
+          type="text" 
+          id="searchInput" 
+          class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+          placeholder="Search for packages..."
+        />
+        <button 
+          id="searchBtn"
+          class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+        >
+          <span id="btnText">Search</span>
+          <span id="btnSpinner" class="hidden">
+            <svg class="animate-spin w-4 h-4 inline" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="space-y-4"></div>
+    
+    <!-- Error Message -->
+    <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md"></div>
+  </div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const results = document.getElementById('results');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Search on button click
+    searchBtn.addEventListener('click', performSearch);
+    
+    // Search on Enter key
+    searchInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        performSearch();
+      }
+    });
+
+    function performSearch() {
+      const query = searchInput.value.trim();
+      if (!query) return;
+
+      setLoadingState(true);
+      clearResults();
+      hideError();
+
+      fetch('http://localhost:8081/api/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: query })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+      })
+      .then(data => {
+        setLoadingState(false);
+        displayResults(data);
+      })
+      .catch(error => {
+        setLoadingState(false);
+        showError(`Search failed: ${error.message}`);
+      });
+    }
+
+    function displayResults(data) {
+      try {
+        // Parse the response - it might be a JSON array string
+        let parsedData;
+        
+        // Try to parse as JSON first
+        try {
+          parsedData = JSON.parse(data);
+          
+        } catch {
+          // If it's not valid JSON, try to clean it up
+          // Remove any extra characters and parse
+          const cleanData = data.trim();
+          parsedData = JSON.parse(cleanData);
+        }
+
+        if (!Array.isArray(parsedData) || parsedData.length === 0) {
+          showError('No results found');
+          return;
+        }
+
+        let html = `<div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div class="bg-gray-50 px-4 py-2 border-b">
+            <h3 class="font-medium text-gray-900">Search Results (${parsedData.length})</h3>
+          </div>`;
+
+        parsedData.forEach((item, index) => {
+          // Handle different possible data structures
+          let stars, verified, name, official, description;
+          
+          if (Array.isArray(item)) {
+            // If item is an array: [stars, verified, name, official, description]
+            [stars, verified, name, official, description] = item;
+          } else if (typeof item === 'object') {
+            // If item is an object
+            stars = item.stars || item.Stars || 0;
+            verified = item.verified || item.Verified || false;
+            name = item.name || item.Name || 'Unknown';
+            official = item.official || item.Official || false;
+            description = item.description || item.Description || '';
+          }
+
+          const isVerified = verified === true || verified === 'true';
+          const isOfficial = official === true || official === 'true';
+
+          html += `
+            <div class="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+              <div class="flex items-start justify-between">
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <h4 class="font-medium text-gray-900">${name || 'Unnamed'}</h4>
+                    ${isOfficial ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Official</span>' : ''}
+                    ${isVerified ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Verified</span>' : ''}
+                    <div class="flex items-center gap-1 text-yellow-500">
+                      <svg class="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      </svg>
+                      <span class="text-sm font-medium text-gray-700">${stars || 0}</span>
+                    </div>
+                  </div>
+                  ${description ? `<p class="text-gray-600 text-sm">${description}</p>` : ''}
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        html += '</div>';
+        results.innerHTML = html;
+        
+      } catch (error) {
+        console.error('Error parsing results:', error);
+        showError('Error displaying results. Check console for details.');
+      }
+    }
+
+    function setLoadingState(loading) {
+      if (loading) {
+        searchBtn.disabled = true;
+        btnText.classList.add('hidden');
+        btnSpinner.classList.remove('hidden');
+      } else {
+        searchBtn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnSpinner.classList.add('hidden');
+      }
+    }
+
+    function clearResults() {
+      results.innerHTML = '';
+    }
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+    }
+
+    function hideError() {
+      errorMessage.classList.add('hidden');
     }
   </script>
 </body>

@@ -92,17 +92,56 @@
 
     function displayResults(data) {
       try {
-        // Parse the response - it might be a JSON array string
+        console.log('Raw data received:', data);
+        
         let parsedData;
         
         // Try to parse as JSON first
         try {
           parsedData = JSON.parse(data);
+          console.log('i am god      ',parsedData[0].star_count);
         } catch {
-          // If it's not valid JSON, try to clean it up
-          // Remove any extra characters and parse
-          const cleanData = data.trim();
-          parsedData = JSON.parse(cleanData);
+          // Handle Go struct format like: [{14409 true postgres false description}]
+          // Convert to proper JSON array format
+          try {
+            // First, let's manually parse the Go struct format
+            let cleanData = data.trim();
+            
+            // Remove outer brackets if present
+            if (cleanData.startsWith('[') && cleanData.endsWith(']')) {
+              cleanData = cleanData.slice(1, -1);
+            }
+            
+            // Split by } { to get individual structs
+            let structs = cleanData.split('} {');
+            
+            parsedData = structs.map(struct => {
+              // Remove remaining { and }
+              struct = struct.replace(/^{/, '').replace(/}$/, '');
+              
+              // Parse the struct content
+              // Format: "14409 true postgres false The PostgreSQL..."
+              // We need to be careful with the description which may contain spaces
+              
+              let parts = struct.trim().split(' ');
+              if (parts.length >= 4) {
+                let stars =(parts[0]) || 0;
+                let isOfficial = parts[1] === 'true';
+                let name = parts[2];
+                let isAutomated = parts[3] === 'true';
+                let description = parts.slice(4).join(' '); // Join remaining parts as description
+                // console.log('hello world:',description); 
+                return [stars, isOfficial, name, isAutomated, description];
+              }
+              return null;
+            }).filter(item => item !== null);
+            
+            console.log('Parsed structs:', parsedData);
+            
+          } catch (parseError) {
+            console.error('Failed to parse Go struct format:', parseError);
+            throw new Error('Unable to parse response data');
+          }
         }
 
         if (!Array.isArray(parsedData) || parsedData.length === 0) {
@@ -116,37 +155,55 @@
           </div>`;
 
         parsedData.forEach((item, index) => {
-          // Handle different possible data structures
-          let id, verified, name, official, description;
+          console.log('Processing item:', item);
           
-          if (Array.isArray(item)) {
-            // If item is an array: [id, verified, name, official, description]
-            [id, verified, name, official, description] = item;
+          // Handle the array format: [stars, is_official, name, is_automated, description]
+          let stars, isOfficial, name, isAutomated, description;
+          console.log('Processing stars:', item.star_count);
+          if (Array.isArray(item) && item.length >= 5) {
+            [stars, isOfficial, name, isAutomated, description] = item;
           } else if (typeof item === 'object') {
-            // If item is an object
-            id = item.id || item.ID || index;
-            verified = item.verified || item.Verified || false;
+            // Fallback for object format
+            stars = item.star_count || item.Stars || 0;
+            isOfficial = item.is_official || item.IsOfficial || false;
             name = item.name || item.Name || 'Unknown';
-            official = item.official || item.Official || false;
+            isAutomated = item.is_automated || item.IsAutomated || false;
             description = item.description || item.Description || '';
+          } else {
+            console.warn('Unexpected item format:', item);
+            return;
           }
 
-          const isVerified = verified === true || verified === 'true';
-          const isOfficial = official === true || official === 'true';
+          // Ensure stars is a number
+          stars = parseInt(stars) || 0;
+          
+          // Convert string booleans to actual booleans
+          const official = isOfficial === true || isOfficial === 'true';
+          const automated = isAutomated === true || isAutomated === 'true';
+          
+          // Format stars with commas for large numbers
+          const formattedStars = stars.toLocaleString();
+
+          console.log(`Item: ${name}, Stars: ${stars}, Official: ${official}, Automated: ${automated}`);
 
           html += `
             <div class="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
               <div class="flex items-start justify-between">
                 <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-1">
-                    <h4 class="font-medium text-gray-900">${name || 'Unnamed'}</h4>
-                    ${isOfficial ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Official</span>' : ''}
-                    ${isVerified ? '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">Verified</span>' : ''}
+                  <div class="flex items-center gap-2 mb-2">
+                    <h4 class="font-medium text-gray-900 text-lg">${name || 'Unnamed'}</h4>
+                    ${official ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">Official</span>' : ''}
+                    ${automated ? '<span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-medium">Automated</span>' : ''}
                   </div>
-                  ${description ? `<p class="text-gray-600 text-sm">${description}</p>` : ''}
-                </div>
-                <div class="text-xs text-gray-400 ml-4">
-                  ID: ${id}
+                  
+                  <div class="flex items-center gap-1 mb-2">
+                    <svg class="w-4 h-4 fill-current text-yellow-500" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-700">${formattedStars} stars</span>
+                  </div>
+                  
+                  ${description && description.trim() ? `<p class="text-gray-600 text-sm leading-relaxed">${description.trim()}</p>` : '<p class="text-gray-400 text-sm italic">No description available</p>'}
                 </div>
               </div>
             </div>
@@ -158,7 +215,8 @@
         
       } catch (error) {
         console.error('Error parsing results:', error);
-        showError('Error displaying results. Check console for details.');
+        console.error('Raw data was:', data);
+        showError(`Error displaying results: ${error.message}. Check console for details.`);
       }
     }
 
@@ -188,4 +246,4 @@
     }
   </script>
 </body>
-</html> 
+</html>
