@@ -207,6 +207,14 @@
                   
                   ${description && description.trim() ? `<p class="text-gray-600 text-sm leading-relaxed">${description.trim()}</p>` : '<p class="text-gray-400 text-sm italic">No description available</p>'}
                 </div>
+                <div class="ml-4 flex-shrink-0">
+                  <button 
+                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 text-sm font-medium"
+                    onclick="selectImage('${name}')"
+                  >
+                    Select
+                  </button>
+                </div>
               </div>
             </div>
           `;
@@ -245,6 +253,30 @@
 
     function hideError() {
       errorMessage.classList.add('hidden');
+    }
+
+    function selectImage(imageName){
+      fetch('http://localhost:8081/api/createImg', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: imageName })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.text();
+      })
+      // .then(data => {
+      //   setLoadingState(false);
+      //   displayResults(data);
+      // })
+      .catch(error => {
+        setLoadingState(false);
+        showError(`Search failed: ${error.message}`);
+      });
     }
   </script>
 </body>

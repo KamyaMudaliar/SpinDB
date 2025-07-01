@@ -43,7 +43,7 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("2")
+	fmt.Println(input)
 	
 
 	//docker client
@@ -65,6 +65,31 @@ func submitHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
+func imageHandler(w http.ResponseWriter, r *http.Request){
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
+
+	//cors preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var input dbase
+	err := json.NewDecoder(r.Body).Decode(&input)
+	if err!=nil{
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+	fmt.Println(input)
+}
 // Root handler for `/`
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Go API backend is running.")
@@ -84,6 +109,7 @@ func main() {
 	http.HandleFunc("/", rootHandler)
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/api/submit", submitHandler)
+	http.HandleFunc("/api/createImg",imageHandler)
 
 	http.ListenAndServe(":8081", nil)
 }
