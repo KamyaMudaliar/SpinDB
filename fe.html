@@ -9,7 +9,7 @@
 </head>
 <body class="bg-gray-50 min-h-screen p-6">
   <div class="max-w-4xl mx-auto">
-    
+
     <!-- Search Bar -->
     <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
       <div class="flex gap-3">
@@ -36,7 +36,11 @@
 
     <!-- Results -->
     <div id="results" class="space-y-4"></div>
-    
+
+    <!-- Live Logs -->
+    <div id="logBox" class="bg-black text-green-400 font-mono text-sm p-4 rounded-md mt-6 whitespace-pre overflow-y-auto hidden h-64"></div>
+
+
     <!-- Error Message -->
     <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md"></div>
   </div>
@@ -49,14 +53,9 @@
     const results = document.getElementById('results');
     const errorMessage = document.getElementById('errorMessage');
 
-    // Search on button click
     searchBtn.addEventListener('click', performSearch);
-    
-    // Search on Enter key
-    searchInput.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        performSearch();
-      }
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') performSearch();
     });
 
     function performSearch() {
@@ -69,177 +68,73 @@
 
       fetch('http://localhost:8081/api/submit', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: query })
       })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.text();
-      })
-      .then(data => {
-        setLoadingState(false);
-        displayResults(data);
-      })
-      .catch(error => {
-        setLoadingState(false);
-        showError(`Search failed: ${error.message}`);
-      });
+      .then(res => res.ok ? res.text() : Promise.reject(`HTTP error! status: ${res.status}`))
+      .then(displayResults)
+      .catch(err => showError(`Search failed: ${err}`))
+      .finally(() => setLoadingState(false));
     }
 
     function displayResults(data) {
       try {
-        console.log('Raw data received:', data);
-        
-        let parsedData;
-        // Try to parse as JSON first
-        parsedData = JSON.parse(data);
-        
-        // try {
-        //   parsedData = JSON.parse(data);
-        //   console.log('i am god      ',parsedData[0].star_count);
-        // } catch {
-        //   // Handle Go struct format like: [{14409 true postgres false description}]
-        //   // Convert to proper JSON array format
-        //   try {
-        //     // First, let's manually parse the Go struct format
-        //     let cleanData = data.trim();
-            
-        //     // Remove outer brackets if present
-        //     if (cleanData.startsWith('[') && cleanData.endsWith(']')) {
-        //       cleanData = cleanData.slice(1, -1);
-        //     }
-            
-        //     // Split by } { to get individual structs
-        //     let structs = cleanData.split('} {');
-            
-        //     parsedData = structs.map(struct => {
-        //       // Remove remaining { and }
-        //       struct = struct.replace(/^{/, '').replace(/}$/, '');
-              
-        //       // Parse the struct content
-        //       // Format: "14409 true postgres false The PostgreSQL..."
-        //       // We need to be careful with the description which may contain spaces
-              
-        //       let parts = struct.trim().split(' ');
-        //       if (parts.length >= 4) {
-        //         let stars =(parts[0]) || 0;
-        //         let isOfficial = parts[1] === 'true';
-        //         let name = parts[2];
-        //         let isAutomated = parts[3] === 'true';
-        //         let description = parts.slice(4).join(' '); // Join remaining parts as description
-        //         // console.log('hello world:',description); 
-        //         return [stars, isOfficial, name, isAutomated, description];
-        //       }
-        //       return null;
-        //     }).filter(item => item !== null);
-            
-        //     console.log('Parsed structs:', parsedData);
-            
-        //   } catch (parseError) {
-        //     console.error('Failed to parse Go struct format:', parseError);
-        //     throw new Error('Unable to parse response data');
-        //   }
-        // }
+        const parsedData = JSON.parse(data);
+        if (!Array.isArray(parsedData) || parsedData.length === 0) return showError('No results found');
 
-        if (!Array.isArray(parsedData) || parsedData.length === 0) {
-          showError('No results found');
-          return;
-        }
+        let html = `
+          <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div class="bg-gray-50 px-4 py-2 border-b">
+              <h3 class="font-medium text-gray-900">Search Results (${parsedData.length})</h3>
+            </div>`;
 
-        //creates a tile for the each item like a header and a body 
-        let html = `<div class="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div class="bg-gray-50 px-4 py-2 border-b">
-            <h3 class="font-medium text-gray-900">Search Results (${parsedData.length})</h3>
-          </div>`;
-
-        parsedData.forEach((item, index) => { //debugging
-          console.log('Processing item:', item);
-          
-          // Handle the array format: [stars, is_official, name, is_automated, description]
-          let stars, isOfficial, name, isAutomated, description;
-          console.log('Processing stars:', item.star_count);
-          if (Array.isArray(item) && item.length >= 5) {
-            [stars, isOfficial, name, isAutomated, description] = item;
-          } else if (typeof item === 'object') {
-            // Fallback for object format
-            stars = item.star_count || item.Stars || 0;
-            isOfficial = item.is_official || item.IsOfficial || false;
-            name = item.name || item.Name || 'Unknown';
-            isAutomated = item.is_automated || item.IsAutomated || false;
-            description = item.description || item.Description || '';
-          } else {
-            console.warn('Unexpected item format:', item);
-            return;
-          }
-
-          // Ensure stars is a number
-          stars = parseInt(stars) || 0;
-          
-          // Convert string booleans to actual booleans
-          const official = isOfficial === true || isOfficial === 'true';
-          const automated = isAutomated === true || isAutomated === 'true';
-          
-          // Format stars with commas for large numbers
-          const formattedStars = stars.toLocaleString();
-
-          console.log(`Item: ${name}, Stars: ${stars}, Official: ${official}, Automated: ${automated}`);
+        parsedData.forEach(item => {
+          const stars = parseInt(item.star_count || item.Stars || 0);
+          const name = item.name || item.Name || 'Unknown';
+          const description = item.description || item.Description || '';
+          const isOfficial = item.is_official || item.IsOfficial;
+          const isAutomated = item.is_automated || item.IsAutomated;
 
           html += `
             <div class="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
               <div class="flex items-start justify-between">
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-2">
-                    <h4 class="font-medium text-gray-900 text-lg">${name || 'Unnamed'}</h4>
-                    ${official ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">Official</span>' : ''}
-                    ${automated ? '<span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-medium">Automated</span>' : ''}
+                    <h4 class="font-medium text-gray-900 text-lg">${name}</h4>
+                    ${isOfficial ? '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">Official</span>' : ''}
+                    ${isAutomated ? '<span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-medium">Automated</span>' : ''}
                   </div>
-                  
                   <div class="flex items-center gap-1 mb-2">
                     <svg class="w-4 h-4 fill-current text-yellow-500" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292..."/>
                     </svg>
-                    <span class="text-sm font-medium text-gray-700">${formattedStars} stars</span>
+                    <span class="text-sm font-medium text-gray-700">${stars.toLocaleString()} stars</span>
                   </div>
-                  
-                  ${description && description.trim() ? `<p class="text-gray-600 text-sm leading-relaxed">${description.trim()}</p>` : '<p class="text-gray-400 text-sm italic">No description available</p>'}
+                  <p class="text-gray-600 text-sm">${description || 'No description available'}</p>
                 </div>
                 <div class="ml-4 flex-shrink-0">
                   <button 
-                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 text-sm font-medium"
+                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-medium"
                     onclick="selectImage('${name}')"
                   >
                     Select
                   </button>
                 </div>
               </div>
-            </div>
-          `;
+            </div>`;
         });
 
         html += '</div>';
         results.innerHTML = html;
-        
-      } catch (error) {
-        console.error('Error parsing results:', error);
-        console.error('Raw data was:', data);
-        showError(`Error displaying results: ${error.message}. Check console for details.`);
+      } catch (err) {
+        showError(`Error displaying results: ${err.message}`);
       }
     }
 
     function setLoadingState(loading) {
-      if (loading) {
-        searchBtn.disabled = true;
-        btnText.classList.add('hidden');
-        btnSpinner.classList.remove('hidden');
-      } else {
-        searchBtn.disabled = false;
-        btnText.classList.remove('hidden');
-        btnSpinner.classList.add('hidden');
-      }
+      searchBtn.disabled = loading;
+      btnText.classList.toggle('hidden', loading);
+      btnSpinner.classList.toggle('hidden', !loading);
     }
 
     function clearResults() {
@@ -254,30 +149,42 @@
     function hideError() {
       errorMessage.classList.add('hidden');
     }
+    
+    function selectImage(name) {
+      const logBox = document.getElementById('logBox');
+      logBox.classList.remove('hidden');
+      logBox.textContent = `Starting container for "${name}"...\n`;
 
-    function selectImage(imageName){
-      fetch('http://localhost:8081/api/createImg', {
+      fetch('http://localhost:8081/api/createContainer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ name: imageName })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
       })
       .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.body) throw new Error("No response body");
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        function readStream() {
+          return reader.read().then(({ done, value }) => {
+            if (done) return;
+            const chunk = decoder.decode(value, { stream: true });
+            logBox.textContent += chunk;
+            logBox.scrollTop = logBox.scrollHeight;
+            return readStream(); // Keep reading
+          });
         }
-        return response.text();
+
+        return readStream();
       })
-      // .then(data => {
-      //   setLoadingState(false);
-      //   displayResults(data);
-      // })
-      .catch(error => {
-        setLoadingState(false);
-        showError(`Search failed: ${error.message}`);
+      .catch(err => {
+        logBox.textContent += `\nError: ${err}`;
+        showError(`Failed to create container: ${err}`);
       });
     }
+
+
   </script>
 </body>
 </html>
