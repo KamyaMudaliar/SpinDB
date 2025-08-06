@@ -7,7 +7,11 @@ import (
 	"io"
 	"log"
 	"net/http"
-
+	"os/exec"
+	"time"
+	"strings"
+	"math/rand"
+	"strconv"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -231,13 +235,69 @@ func (s *Server) containerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log("Image pulled successfully.")
 
-	containerName := input.Name + "_container"
+	// containerName := input.Name + "_container"
+	safeName := strings.ReplaceAll(input.Name, "/", "_")
+	containerName := safeName + "_container"
 	port := "5432" // or 3306 if mysql
 	if err := s.docker.CreateContainer(input.Name, containerName, port); err != nil {
 		log(fmt.Sprintf("Error creating container: %v", err))
 		return
 	}
-	log("Container started successfully.")
+	log("Container created and starting...")
+	
+	// Wait until container is in "running" state
+	log("Waiting for container to become healthy...")
+	for {
+		inspect, err := s.docker.client.ContainerInspect(s.docker.ctx, containerName)
+		if err != nil {
+			log(fmt.Sprintf("Failed to inspect container: %v", err))
+			return
+		}
+		if inspect.State != nil && inspect.State.Running {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	// log("Container is now running. Starting ttyd...")
+	
+	// // Now safely start ttyd
+	// go func() {
+	// 	fmt.Println("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
+	// 	cmd := exec.Command("ttyd", "--writable", "docker", "attach", containerName)
+	// 	err := cmd.Start()
+	// 	if err != nil {
+	// 		fmt.Println("Failed to start ttyd:", err)
+	// 	} else {
+	// 		fmt.	Printf("Started ttyd for container %s\n", containerName)
+	// 	}
+	// }()
+	// Allocate a random port between 9000–9999
+	portNum := 9000 + rand.Intn(1000)
+	portStr := strconv.Itoa(portNum)
+	ttydURL := fmt.Sprintf("http://localhost:%s", portStr)
+
+	log(fmt.Sprintf("Starting ttyd on %s...", ttydURL))
+
+	go func() {
+		cmd := exec.Command("ttyd", "--writable", "-p", portStr, "docker", "attach", containerName)
+		err := cmd.Start()
+		if err != nil {
+			fmt.Println("Failed to start ttyd:", err)
+		} else {
+			fmt.Printf("Started ttyd for container %s on port %s\n", containerName, portStr)
+		}
+	}()
+	
+	// Give frontend the ttyd URL to connect to
+	time.Sleep(1 * time.Second) // short wait to ensure ttyd starts
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":   "Container started successfully",
+		"ttyd_url": ttydURL,
+	})
+
+	
+	
 }
 
 
@@ -252,6 +312,8 @@ func faviconHandler(w http.ResponseWriter, r *http.Request) {
 // -------------------- Main --------------------
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	dockerService, err := NewDockerService()
 	if err != nil {
 		log.Fatal("Failed to create Docker service:", err)

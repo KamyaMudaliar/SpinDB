@@ -39,7 +39,17 @@
 
     <!-- Live Logs -->
     <div id="logBox" class="bg-black text-green-400 font-mono text-sm p-4 rounded-md mt-6 whitespace-pre overflow-y-auto hidden h-64"></div>
-
+    <div id="terminalBox" class="hidden mt-4">
+      <h3 class="text-lg font-semibold mb-2">Interactive Terminal</h3>
+      <iframe 
+        id="terminalFrame"
+        src=""
+        width="100%" 
+        height="500px" 
+        class="rounded-md border border-gray-300"
+      ></iframe>
+    </div>
+    
 
     <!-- Error Message -->
     <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md"></div>
@@ -150,9 +160,55 @@
       errorMessage.classList.add('hidden');
     }
     
+    // function selectImage(name) {
+    //   const logBox = document.getElementById('logBox');
+    //   const terminalBox = document.getElementById('terminalBox');
+    //   const terminalFrame = document.getElementById('terminalFrame');
+
+    //   logBox.classList.remove('hidden');
+    //   terminalBox.classList.remove('hidden');
+    //   logBox.textContent = `Starting container for "${name}"...\n`;
+
+    //   fetch('http://localhost:8081/api/createContainer', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ name })
+    //   })
+    //   .then(response => {
+    //     if (!response.body) throw new Error("No response body");
+
+    //     const reader = response.body.getReader();
+    //     const decoder = new TextDecoder();
+
+    //     function readStream() {
+    //       return reader.read().then(({ done, value }) => {
+    //         if (done) return;
+    //         const chunk = decoder.decode(value, { stream: true });
+    //         logBox.textContent += chunk;
+    //         logBox.scrollTop = logBox.scrollHeight;
+    //         return readStream(); // Keep reading
+    //       });
+    //     }
+
+    //     // Show terminal frame after delay
+    //     setTimeout(() => {
+    //       terminalFrame.src = "http://localhost:7681";
+    //     }, 1500);
+
+    //     return readStream();
+    //   })
+    //   .catch(err => {
+    //     logBox.textContent += `\nError: ${err}`;
+    //     showError(`Failed to create container: ${err}`);
+    //   });
+    // }
     function selectImage(name) {
       const logBox = document.getElementById('logBox');
+      const terminalBox = document.getElementById('terminalBox');
+      const terminalFrame = document.getElementById('terminalFrame');
+
       logBox.classList.remove('hidden');
+      terminalBox.classList.remove('hidden');
       logBox.textContent = `Starting container for "${name}"...\n`;
 
       fetch('http://localhost:8081/api/createContainer', {
@@ -165,14 +221,32 @@
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let fullResponse = ""; // capture the whole response
 
         function readStream() {
           return reader.read().then(({ done, value }) => {
-            if (done) return;
+            if (done) {
+              // Try to extract ttyd_url from the final chunk (as JSON)
+              try {
+                const lastLine = fullResponse.trim().split("\n").pop();
+                const parsed = JSON.parse(lastLine);
+                if (parsed && parsed.ttyd_url) {
+                  terminalFrame.src = parsed.ttyd_url;
+                } else {
+                  terminalFrame.src = "http://localhost:7681"; // fallback
+                }
+              } catch (e) {
+                console.error("Failed to parse ttyd_url JSON:", e);
+                terminalFrame.src = "http://localhost:7681"; // fallback
+              }
+              return;
+            }
+
             const chunk = decoder.decode(value, { stream: true });
+            fullResponse += chunk;
             logBox.textContent += chunk;
             logBox.scrollTop = logBox.scrollHeight;
-            return readStream(); // Keep reading
+            return readStream(); // keep reading
           });
         }
 
@@ -183,6 +257,7 @@
         showError(`Failed to create container: ${err}`);
       });
     }
+
 
 
   </script>
